@@ -1,0 +1,72 @@
+---
+title: "Dave's Pizza"
+author: "Peter Crawford"
+date: "10/25/2021"
+output: pdf_document
+---
+
+```{r}
+# web-scraping packages:
+library(rvest)
+library(xml2)
+```
+
+## Scrape data from One Bite (pizza reviews website):
+```{r}
+# function to get all pizza reviews
+dough_scrapR <- function(URL, page_number) {
+  
+  # store html
+  pizza_raw <- read_html(URL)
+  
+  # extract review contents
+  score <- pizza_raw %>% 
+    rvest::html_nodes('body') %>% 
+    xml2::xml_find_all("//p[contains(@class, 'jsx-845469894 rating__score')]") %>% 
+    rvest::html_text()
+  location <- pizza_raw %>% 
+    rvest::html_nodes('body') %>% 
+    xml2::xml_find_all("//p[contains(@class, 'jsx-574827726 reviewCard__location')]") %>% 
+    rvest::html_text()
+  restaurant <- pizza_raw %>% 
+    rvest::html_nodes('body') %>% 
+    xml2::xml_find_all("//h2[contains(@class, 'jsx-574827726 reviewCard__title')]") %>% 
+    rvest::html_text()
+  date <- pizza_raw %>% 
+    rvest::html_nodes('body') %>% 
+    xml2::xml_find_all("//p[contains(@class, 'jsx-2368882028 userMeta__timestamp')]") %>% 
+    rvest::html_text()
+  return(data.frame(date, restaurant, location, score))
+}
+
+# most recent page has unique URL, have to hard-code
+pizza_reviews <- dough_scrapR("https://onebite.app/reviews/dave")
+
+# hard-coded 
+page_range <- c(2:38)
+# figure out how to stop when data is no longer being gathered -- while loop?
+
+# loop to append other pages' reviews
+for (i in page_range) {
+  URL_current <- paste0("https://onebite.app/reviews/dave?page=", i, "&minScore=0&maxScore=10")
+  pizza_reviews <- rbind(pizza_reviews, dough_scrapR(URL_current))
+}
+
+# would be nice to figure out how to have this "always on" 
+# i.e., updating when new reviews get posted
+```
+
+## Some data cleaning:
+```{r}
+# convert scores from chr to dbl
+pizza_reviews$score <- as.numeric(pizza_reviews$score)
+
+
+
+plot(pizza_reviews$score, type = "l")
+abline(h = mean(pizza_reviews$score))
+
+
+```
+
+
