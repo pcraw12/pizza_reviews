@@ -1,0 +1,37 @@
+---
+title: "Pizza Reviews Analysis"
+author: "Peter Crawford"
+date: "10/26/2021"
+output: pdf_document
+---
+
+## Some data cleaning:
+```{r}
+pizza_reviews <- read.csv("/Users/petercrawford/Desktop/Misc./Side Projects/Pizza reviews/pizza_reviews.csv")
+# convert scores from character to double
+pizza_reviews$score <- as.numeric(pizza_reviews$score)
+
+# most recent reviews are in the format "x hours ago" or "x days ago"
+# needs to be converted to a typical date-time format
+pizza_reviews$date <- ifelse(grepl("hours", pizza_reviews$date), as.character(Sys.Date()), pizza_reviews$date)
+
+# subtract off the number of days since the current day
+for (i in c(1:nrow(pizza_reviews))) {
+  if (grepl("days", pizza_reviews$date[i])) {
+    pizza_reviews$date[i] <- Sys.Date() - as.numeric(strsplit(pizza_reviews$date, " ")[[i]][1])
+  } else {
+    pizza_reviews$date[i] <- as.Date(strsplit(pizza_reviews$date, " ")[[i]][1], format = "%Y%m%d") 
+  }
+}
+
+
+
+
+
+plot(pizza_reviews$score, type = "l")
+abline(h = mean(pizza_reviews$score))
+
+
+
+"%m/%d/%y"
+```
