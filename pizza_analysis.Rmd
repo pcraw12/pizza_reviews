@@ -5,33 +5,64 @@ date: "10/26/2021"
 output: pdf_document
 ---
 
-## Some data cleaning:
+## Read and clean data:
 ```{r}
+# data scraped with the code "pizza_scraper.rmd"
 pizza_reviews <- read.csv("/Users/petercrawford/Desktop/Misc./Side Projects/Pizza reviews/pizza_reviews.csv")
+
 # convert scores from character to double
 pizza_reviews$score <- as.numeric(pizza_reviews$score)
 
 # most recent reviews are in the format "x hours ago" or "x days ago"
 # needs to be converted to a typical date-time format
-pizza_reviews$date <- ifelse(grepl("hours", pizza_reviews$date), as.character(Sys.Date()), pizza_reviews$date)
-
-# subtract off the number of days since the current day
 for (i in c(1:nrow(pizza_reviews))) {
   if (grepl("days", pizza_reviews$date[i])) {
-    pizza_reviews$date[i] <- Sys.Date() - as.numeric(strsplit(pizza_reviews$date, " ")[[i]][1])
+    # subtract off the number of days since the current day
+    pizza_reviews$date[i] <- as.character(Sys.Date() - as.numeric(strsplit(pizza_reviews$date, " ")[[i]][1]))
+  } else if (grepl("hours", pizza_reviews$date[i])) {
+    pizza_reviews$date[i] <- as.character(Sys.Date())
   } else {
-    pizza_reviews$date[i] <- as.Date(strsplit(pizza_reviews$date, " ")[[i]][1], format = "%Y%m%d") 
+    pizza_reviews$date[i] <- as.character(as.Date(strsplit(pizza_reviews$date, " ")[[i]][1], format = "%m/%d/%y"))
   }
 }
 
+# convert to a date to an actual date type
+library(lubridate)
+pizza_reviews$date <- ymd(pizza_reviews$date)
 
 
-
-
-plot(pizza_reviews$score, type = "l")
-abline(h = mean(pizza_reviews$score))
-
-
-
-"%m/%d/%y"
+# checking for NAs
+colSums(is.na(pizza_reviews))
 ```
+
+# Convert restaurant and location to latitude and longitude, to plot
+# went to this website and modified the code
+# https://www.storybench.org/geocode-csv-addresses-r/
+```{r}
+library(ggmap)
+# in order to get the for loop and functions to work you need a google API key
+register_google(key = "key_goes_here", write = TRUE)
+
+origAddress <- data.frame(location = paste0(pizza_reviews$restaurant, ", ", pizza_reviews$location))
+
+# Initialize the data frame
+geocoded <- data.frame(stringsAsFactors = FALSE)
+
+# Loop through the addresses to get the latitude and longitude of each address and add it to the
+# origAddress data frame in new columns lat and lon
+for(i in c(1:nrow(origAddress))) {
+  result <- geocode(origAddress$location[i], output = "latlona", source = "google")
+  origAddress$lon[i] <- as.numeric(result[1])
+  origAddress$lat[i] <- as.numeric(result[2])
+  #origAddress$geoAddress[i] <- as.character(result[3])
+}
+
+pizza_reviews <- cbind(pizza_reviews, origAddress[,c("lon", "lat")])
+write.csv(pizza_reviews, "/Users/petercrawford/Desktop/Misc./Side Projects/Pizza reviews/pizza_reviews.csv")
+
+# check how many locations weren't converted to lat / long
+colSums(is.na(pizza_reviews))
+```
+
+
+
